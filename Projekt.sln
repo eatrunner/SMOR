@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CUDA", "Projekt\Projekt.vcxproj", "{0C776CEA-77A3-45FD-9E28-733386F7B612}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CUDA", "CUDA\Projekt.vcxproj", "{0C776CEA-77A3-45FD-9E28-733386F7B612}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OpenCL", "OpenCL\OpenCL.vcxproj", "{9870E54C-313C-4F4F-A571-78E3F9CAEE39}"
 EndProject
