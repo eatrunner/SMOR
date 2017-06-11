@@ -17,7 +17,6 @@ using namespace std;
 #define abs(a)	   (((a) < 0) ? -(a) : (a))
 
 #define BLOCK_SIZE 32
-#define MASK_SIZE 5
 
 __constant__ int shifts[3 * 3];
 
@@ -25,23 +24,23 @@ __constant__ float mask1f1[] = {
 	0.17f, 0.67f, 0.17f,
 	0.67f, -3.33f, 0.67f,
 	0.17f, 0.67f, 0.17f };
-__constant__ int mask2f1[] = {
+__constant__ float mask2f1[] = {
 	0, 0, 0,
 	0, 0, 0,
 	0, 0, 0 };
-__constant__ int mask1f2[] = {
+__constant__ float mask1f2[] = {
 	1, 2, 1,
 	2, 4, 2,
 	1, 2, 1 };
-__constant__ int mask2f2[] = {
+__constant__ float mask2f2[] = {
 	0, 0, 0,
 	0, 0, 0,
 	0, 0, 0 };
-__constant__ int mask1f3[] = {
+__constant__ float mask1f3[] = {
 	-1, -1, -1,
 	0, 0, 0,
 	1, 1, 1 };
-__constant__ int mask2f3[] = { 
+__constant__ float mask2f3[] = {
 	-1, 0, 1,
 	-1, 0, 1,
 	-1, 0, 1 };
@@ -49,100 +48,155 @@ __constant__ int mask2f3[] = {
 
 __global__ void cuImageProcess1(const float *dev_image, float *dev_out, int w, int h)
 {
+	__shared__ float pixels[3 * BLOCK_SIZE][3 * BLOCK_SIZE];
+
 	int tx = threadIdx.x;   int ty = threadIdx.y;
-	int bx = blockIdx.x;	int by = blockIdx.y;
+	int bx = blockIdx.x;    int by = blockIdx.y;
 
 	int thread_pos_x = bx *BLOCK_SIZE + tx;
 	int thread_pos_y = by *BLOCK_SIZE + ty;
-	float weightSum1 = 0, weightSum2 = 0;
-	//ignorujemy krawedzie
-	if (thread_pos_x == 0 || thread_pos_x == w || thread_pos_y == 0 || thread_pos_y == h)
-		return;
+
 
 	int pos = thread_pos_x + thread_pos_y*w;
+	float val;
 
-	float sum1 = 0, sum2 = 0;
-	for (int shift = 0; shift < 9; shift++) {
-		pos = pos + shifts[shift];
-		if (pos < 0 || pos >= w*h) {
-			continue;
+	for (int i = -1; i < 1; i++)
+	{
+		for (int j = -1; j < 1; j++)
+		{
+			int act_x = thread_pos_x + i * BLOCK_SIZE;
+			int act_y = thread_pos_y + j * BLOCK_SIZE;
+
+			if (act_x < 0 || act_x >= w || act_y < 0 || act_y >= h)
+				val = 0.0f;
+			else
+				val = dev_image[act_x + act_y*w];
+			pixels[tx + (i + 1) * BLOCK_SIZE][ty + (j + 1) * BLOCK_SIZE] = val;
 		}
-		sum1 += dev_image[pos] * mask1f1[shift];
-		sum2 += dev_image[pos] * mask2f1[shift];
-		weightSum1 += mask1f1[shift];
-		weightSum2 += mask2f1[shift];
+	}
+
+	__syncthreads();
+
+
+	float weightSum1 = 0, weightSum2 = 0;
+	float sum1 = 0, sum2 = 0;
+	for (int i = 0; i < 3; i++)
+	{
+		for (int j = 0; j < 3; ++j)
+		{
+			float pixel_val = pixels[BLOCK_SIZE + tx + i - 2][BLOCK_SIZE + ty + j - 2];
+			sum1 += pixel_val * mask1f1[i + 3 * j];
+			sum2 += pixel_val * mask2f1[i + 3 * j];
+			weightSum1 += mask1f1[i + 3 * j];
+			weightSum2 += mask2f1[i + 3 * j];
+		}
 
 	}
 	sum1 = weightSum1 == 0 ? sum1 : sum1 / weightSum1;
 	sum2 = weightSum2 == 0 ? sum2 : sum2 / weightSum2;
 	dev_out[pos] = min(255.0f, sqrtf(sum1*sum1 + sum2*sum2));
-	__syncthreads();
 
 }
 
 __global__ void cuImageProcess2(const float *dev_image, float *dev_out, int w, int h)
 {
+	__shared__ float pixels[3 * BLOCK_SIZE][3 * BLOCK_SIZE];
+
 	int tx = threadIdx.x;   int ty = threadIdx.y;
-	int bx = blockIdx.x;	int by = blockIdx.y;
+	int bx = blockIdx.x;    int by = blockIdx.y;
 
 	int thread_pos_x = bx *BLOCK_SIZE + tx;
 	int thread_pos_y = by *BLOCK_SIZE + ty;
-	float weightSum1 = 0, weightSum2 = 0;
-	//ignorujemy krawedzie
-	if (thread_pos_x == 0 || thread_pos_x == w || thread_pos_y == 0 || thread_pos_y == h)
-		return;
 
 	int pos = thread_pos_x + thread_pos_y*w;
+	float val;
 
-	float sum1 = 0, sum2 = 0;
-	for (int shift = 0; shift < 9; shift++) {
-		pos = pos + shifts[shift];
-		if (pos < 0 || pos >= w*h) {
-			continue;
+	for (int i = -1; i < 1; i++)
+	{
+		for (int j = -1; j < 1; j++)
+		{
+			int act_x = thread_pos_x + i * BLOCK_SIZE;
+			int act_y = thread_pos_y + j * BLOCK_SIZE;
+
+			if (act_x < 0 || act_x >= w || act_y < 0 || act_y >= h)
+				val = 0.0f;
+			else
+				val = dev_image[act_x + act_y*w];
+			pixels[tx + (i + 1) * BLOCK_SIZE][ty + (j + 1) * BLOCK_SIZE] = val;
 		}
-		sum1 += dev_image[pos] * mask1f2[shift];
-		sum2 += dev_image[pos] * mask2f2[shift];
-		weightSum1 += mask1f2[shift];
-		weightSum2 += mask2f2[shift];
+	}
+
+	__syncthreads();
+
+
+	float weightSum1 = 0, weightSum2 = 0;
+	float sum1 = 0, sum2 = 0;
+	for (int i = 0; i < 3; i++)
+	{
+		for (int j = 0; j < 3; ++j)
+		{
+			float pixel_val = pixels[BLOCK_SIZE + tx + i - 2][BLOCK_SIZE + ty + j - 2];
+			sum1 += pixel_val * mask1f2[i + 3 * j];
+			sum2 += pixel_val * mask2f2[i + 3 * j];
+			weightSum1 += mask1f2[i + 3 * j];
+			weightSum2 += mask2f2[i + 3 * j];
+		}
 
 	}
 	sum1 = weightSum1 == 0 ? sum1 : sum1 / weightSum1;
 	sum2 = weightSum2 == 0 ? sum2 : sum2 / weightSum2;
 	dev_out[pos] = min(255.0f, sqrtf(sum1*sum1 + sum2*sum2));
-	__syncthreads();
 
 }
 
 __global__ void cuImageProcess3(const float *dev_image, float *dev_out, int w, int h)
 {
+	__shared__ float pixels[3 * BLOCK_SIZE][3 * BLOCK_SIZE];
+
 	int tx = threadIdx.x;   int ty = threadIdx.y;
-	int bx = blockIdx.x;	int by = blockIdx.y;
+	int bx = blockIdx.x;    int by = blockIdx.y;
 
 	int thread_pos_x = bx *BLOCK_SIZE + tx;
 	int thread_pos_y = by *BLOCK_SIZE + ty;
-	float weightSum1 = 0, weightSum2 = 0;
-	//ignorujemy krawedzie
-	if (thread_pos_x == 0 || thread_pos_x == w || thread_pos_y == 0 || thread_pos_y == h)
-		return;
 
 	int pos = thread_pos_x + thread_pos_y*w;
+	float val;
 
-	float sum1 = 0, sum2 = 0;
-	for (int shift = 0; shift < 9; shift++) {
-		pos = pos + shifts[shift];
-		if (pos < 0 || pos >= w*h) {
-			continue;
+	for (int i = -1; i < 1; i++)
+	{
+		for (int j = -1; j < 1; j++)
+		{
+			int act_x = thread_pos_x + i * BLOCK_SIZE;
+			int act_y = thread_pos_y + j * BLOCK_SIZE;
+
+			if (act_x < 0 || act_x >= w || act_y < 0 || act_y >= h)
+				val = 0.0f;
+			else
+				val = dev_image[act_x + act_y*w];
+			pixels[tx + (i + 1) * BLOCK_SIZE][ty + (j + 1) * BLOCK_SIZE] = val;
 		}
-		sum1 += dev_image[pos] * mask1f3[shift];
-		sum2 += dev_image[pos] * mask2f3[shift];
-		weightSum1 += mask1f3[shift];
-		weightSum2 += mask2f3[shift];
+	}
+
+	__syncthreads();
+
+
+	float weightSum1 = 0, weightSum2 = 0;
+	float sum1 = 0, sum2 = 0;
+	for (int i = 0; i < 3; i++)
+	{
+		for (int j = 0; j < 3; ++j)
+		{
+			float pixel_val = pixels[BLOCK_SIZE + tx + i - 2][BLOCK_SIZE + ty + j - 2];
+			sum1 += pixel_val * mask1f3[i + 3 * j];
+			sum2 += pixel_val * mask2f3[i + 3 * j];
+			weightSum1 += mask1f3[i + 3 * j];
+			weightSum2 += mask2f3[i + 3 * j];
+		}
 
 	}
 	sum1 = weightSum1 == 0 ? sum1 : sum1 / weightSum1;
 	sum2 = weightSum2 == 0 ? sum2 : sum2 / weightSum2;
 	dev_out[pos] = min(255.0f, sqrtf(sum1*sum1 + sum2*sum2));
-	__syncthreads();
 
 }
 

@@ -11,6 +11,7 @@ __kernel void process1(const int w, const int h, const int TILE_DIM, __global co
 		weightSum1 += mask1_[i];
 		weightSum2 += mask2_[i];
 	}
+
 	barrier(CLK_LOCAL_MEM_FENCE);
 	
 	const int ix = get_group_id(0)*TILE_DIM + get_local_id(0); //jezelil TILE_DIM==local_size wtedy mozna get_global_id

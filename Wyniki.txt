@@ -1,0 +1,65 @@
+AMP time[ms]: 172
+AMP time[ms]: 114
+AMP time[ms]: 115
+AMP time[ms]: 112
+AMP time[ms]: 112
+AMP time[ms]: 108
+AMP time[ms]: 109
+AMP time[ms]: 108
+AMP time[ms]: 109
+AMP time[ms]: 113
+AMP time[ms]: 110
+AMP time[ms]: 109
+
+CUDA time[ms]: 49
+CUDA time[ms]: 49
+CUDA time[ms]: 45
+CUDA time[ms]: 46
+CUDA time[ms]: 45
+CUDA time[ms]: 45
+CUDA time[ms]: 45
+CUDA time[ms]: 46
+CUDA time[ms]: 46
+CUDA time[ms]: 45
+CUDA time[ms]: 45
+CUDA time[ms]: 45
+
+MT cpu time[ms]: 10869
+MT cpu time[ms]: 10911
+MT cpu time[ms]: 10869
+MT cpu time[ms]: 12171
+MT cpu time[ms]: 12369
+MT cpu time[ms]: 13053
+MT cpu time[ms]: 12563
+MT cpu time[ms]: 12990
+MT cpu time[ms]: 13231
+MT cpu time[ms]: 13128
+MT cpu time[ms]: 13436
+MT cpu time[ms]: 13204
+
+OpenCL time [ms]: 9.88234
+OpenCL time [ms]: 9.97101
+OpenCL time [ms]: 9.84694
+OpenCL time [ms]: 9.96704
+OpenCL time [ms]: 9.80182
+OpenCL time [ms]: 9.94694
+OpenCL time [ms]: 9.98861
+OpenCL time [ms]: 10.0345
+OpenCL time [ms]: 9.98915
+OpenCL time [ms]: 9.85059
+OpenCL time [ms]: 9.96787
+OpenCL time [ms]: 9.99754
+
+CUDA shared
+CUDA time[ms]: 116
+CUDA time[ms]: 107
+CUDA time[ms]: 107
+CUDA time[ms]: 108
+CUDA time[ms]: 108
+CUDA time[ms]: 107
+CUDA time[ms]: 107
+CUDA time[ms]: 107
+CUDA time[ms]: 107
+CUDA time[ms]: 108
+CUDA time[ms]: 107
+CUDA time[ms]: 107
