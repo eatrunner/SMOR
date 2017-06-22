@@ -20,31 +20,9 @@ using namespace std;
 #define MASK_SIZE 5
 
 __constant__ int shifts[3 * 3];
+__constant__ float mask1[3 * 3];
+__constant__ float mask2[3 * 3];
 
-__constant__ float mask1f1[] = {
-	0.17f, 0.67f, 0.17f,
-	0.67f, -3.33f, 0.67f,
-	0.17f, 0.67f, 0.17f };
-__constant__ int mask2f1[] = {
-	0, 0, 0,
-	0, 0, 0,
-	0, 0, 0 };
-__constant__ int mask1f2[] = {
-	1, 2, 1,
-	2, 4, 2,
-	1, 2, 1 };
-__constant__ int mask2f2[] = {
-	0, 0, 0,
-	0, 0, 0,
-	0, 0, 0 };
-__constant__ int mask1f3[] = {
-	-1, -1, -1,
-	0, 0, 0,
-	1, 1, 1 };
-__constant__ int mask2f3[] = { 
-	-1, 0, 1,
-	-1, 0, 1,
-	-1, 0, 1 };
 
 
 __global__ void cuImageProcess1(const float *dev_image, float *dev_out, int w, int h)
@@ -67,10 +45,10 @@ __global__ void cuImageProcess1(const float *dev_image, float *dev_out, int w, i
 		if (pos < 0 || pos >= w*h) {
 			continue;
 		}
-		sum1 += dev_image[pos] * mask1f1[shift];
-		sum2 += dev_image[pos] * mask2f1[shift];
-		weightSum1 += mask1f1[shift];
-		weightSum2 += mask2f1[shift];
+		sum1 += dev_image[pos] * mask1[shift];
+		sum2 += dev_image[pos] * mask2[shift];
+		weightSum1 += mask1[shift];
+		weightSum2 += mask2[shift];
 
 	}
 	sum1 = weightSum1 == 0 ? sum1 : sum1 / weightSum1;
@@ -80,77 +58,14 @@ __global__ void cuImageProcess1(const float *dev_image, float *dev_out, int w, i
 
 }
 
-__global__ void cuImageProcess2(const float *dev_image, float *dev_out, int w, int h)
-{
-	int tx = threadIdx.x;   int ty = threadIdx.y;
-	int bx = blockIdx.x;	int by = blockIdx.y;
 
-	int thread_pos_x = bx *BLOCK_SIZE + tx;
-	int thread_pos_y = by *BLOCK_SIZE + ty;
-	float weightSum1 = 0, weightSum2 = 0;
-	//ignorujemy krawedzie
-	if (thread_pos_x == 0 || thread_pos_x == w || thread_pos_y == 0 || thread_pos_y == h)
-		return;
-
-	int pos = thread_pos_x + thread_pos_y*w;
-
-	float sum1 = 0, sum2 = 0;
-	for (int shift = 0; shift < 9; shift++) {
-		pos = pos + shifts[shift];
-		if (pos < 0 || pos >= w*h) {
-			continue;
-		}
-		sum1 += dev_image[pos] * mask1f2[shift];
-		sum2 += dev_image[pos] * mask2f2[shift];
-		weightSum1 += mask1f2[shift];
-		weightSum2 += mask2f2[shift];
-
-	}
-	sum1 = weightSum1 == 0 ? sum1 : sum1 / weightSum1;
-	sum2 = weightSum2 == 0 ? sum2 : sum2 / weightSum2;
-	dev_out[pos] = min(255.0f, sqrtf(sum1*sum1 + sum2*sum2));
-	__syncthreads();
-
-}
-
-__global__ void cuImageProcess3(const float *dev_image, float *dev_out, int w, int h)
-{
-	int tx = threadIdx.x;   int ty = threadIdx.y;
-	int bx = blockIdx.x;	int by = blockIdx.y;
-
-	int thread_pos_x = bx *BLOCK_SIZE + tx;
-	int thread_pos_y = by *BLOCK_SIZE + ty;
-	float weightSum1 = 0, weightSum2 = 0;
-	//ignorujemy krawedzie
-	if (thread_pos_x == 0 || thread_pos_x == w || thread_pos_y == 0 || thread_pos_y == h)
-		return;
-
-	int pos = thread_pos_x + thread_pos_y*w;
-
-	float sum1 = 0, sum2 = 0;
-	for (int shift = 0; shift < 9; shift++) {
-		pos = pos + shifts[shift];
-		if (pos < 0 || pos >= w*h) {
-			continue;
-		}
-		sum1 += dev_image[pos] * mask1f3[shift];
-		sum2 += dev_image[pos] * mask2f3[shift];
-		weightSum1 += mask1f3[shift];
-		weightSum2 += mask2f3[shift];
-
-	}
-	sum1 = weightSum1 == 0 ? sum1 : sum1 / weightSum1;
-	sum2 = weightSum2 == 0 ? sum2 : sum2 / weightSum2;
-	dev_out[pos] = min(255.0f, sqrtf(sum1*sum1 + sum2*sum2));
-	__syncthreads();
-
-}
-
-extern "C" bool cuImageProcessing1(unsigned char *image, unsigned char *out_image, int w, int h)
+extern "C" bool cuImageProcessing(unsigned char *image, unsigned char *out_image, int w, int h, float const *mask1_, float const *mask2_)
 {
 	int tmp_shifts[] = { -1 - w, -w , -w  + 1, -1, 0, 1, -1 + w , w , 1 + w  };
 	
 	cudaMemcpyToSymbol(shifts, tmp_shifts, 3 * 3 * sizeof(int));
+	cudaMemcpyToSymbol(mask1, mask1_, 3 * 3 * sizeof(float));
+	cudaMemcpyToSymbol(mask2, mask2_, 3 * 3 * sizeof(float));
 
 	// convert to float
 	float *pinned_input_image, *pinned_output_image;
@@ -191,99 +106,40 @@ extern "C" bool cuImageProcessing1(unsigned char *image, unsigned char *out_imag
 
 	return true;
 }
-extern "C" bool cuImageProcessing2(unsigned char *image, unsigned char *out_image, int w, int h)
-{
-	int tmp_shifts[] = { -1 - w, -w , -w + 1, -1, 0, 1, -1 + w , w , 1 + w };
 
-	cudaMemcpyToSymbol(shifts, tmp_shifts, 3 * 3 * sizeof(int));
-
-	// convert to float
-	float *pinned_input_image, *pinned_output_image;
-	float *dev_input, *dev_output;
-
-	cudaHostAlloc<float>((float**)&pinned_input_image,
-		w *h * sizeof(float), cudaHostAllocDefault);
-	cudaHostAlloc<float>((float**)&pinned_output_image,
-		w *h * sizeof(float), cudaHostAllocDefault);
-
-	for (int i = 0; i < h*w; i++)
-		pinned_input_image[i] = image[i];
-
-	cudaMalloc((void**)&dev_input, w *h * sizeof(float));
-	cudaMalloc((void**)&dev_output, w *h * sizeof(float));
-	cudaMemcpy(dev_input, pinned_input_image, w *h * sizeof(float), cudaMemcpyHostToDevice);
-
-	dim3 dimGrid(w / BLOCK_SIZE, h / BLOCK_SIZE);
-	dim3 dimBlock(BLOCK_SIZE, BLOCK_SIZE);
-
-	clock_t begin = clock();
-	cuImageProcess2 << <dimGrid, dimBlock >> >(dev_input, dev_output, w, h);
-	cudaDeviceSynchronize();
-	clock_t end = clock();
-
-	cudaMemcpy(pinned_output_image, dev_output, w * h * sizeof(float), cudaMemcpyDeviceToHost);
-
-	for (int i = 1; i < h * w; i++)
-		out_image[i] = pinned_output_image[i];
-
-	cudaFree(dev_input);
-	cudaFree(dev_output);
-
-	cudaFreeHost(pinned_input_image);
-	cudaFreeHost(pinned_output_image);
-
-	cout << "CUDA time[ms]: " << double(end - begin) * 1000 / CLOCKS_PER_SEC << endl;
-
-	return true;
-}
-extern "C" bool cuImageProcessing3(unsigned char *image, unsigned char *out_image, int w, int h)
-{
-	int tmp_shifts[] = { -1 - w, -w , -w + 1, -1, 0, 1, -1 + w , w , 1 + w };
-
-	cudaMemcpyToSymbol(shifts, tmp_shifts, 3 * 3 * sizeof(int));
-
-	// convert to float
-	float *pinned_input_image, *pinned_output_image;
-	float *dev_input, *dev_output;
-
-	cudaHostAlloc<float>((float**)&pinned_input_image,
-		w *h * sizeof(float), cudaHostAllocDefault);
-	cudaHostAlloc<float>((float**)&pinned_output_image,
-		w *h * sizeof(float), cudaHostAllocDefault);
-
-	for (int i = 0; i < h*w; i++)
-		pinned_input_image[i] = image[i];
-
-	cudaMalloc((void**)&dev_input, w *h * sizeof(float));
-	cudaMalloc((void**)&dev_output, w *h * sizeof(float));
-	cudaMemcpy(dev_input, pinned_input_image, w *h * sizeof(float), cudaMemcpyHostToDevice);
-
-	dim3 dimGrid(w / BLOCK_SIZE, h / BLOCK_SIZE);
-	dim3 dimBlock(BLOCK_SIZE, BLOCK_SIZE);
-
-	clock_t begin = clock();
-	cuImageProcess3 << <dimGrid, dimBlock >> >(dev_input, dev_output, w, h);
-	cudaDeviceSynchronize();
-	clock_t end = clock();
-
-	cudaMemcpy(pinned_output_image, dev_output, w * h * sizeof(float), cudaMemcpyDeviceToHost);
-
-	for (int i = 1; i < h * w; i++)
-		out_image[i] = pinned_output_image[i];
-
-	cudaFree(dev_input);
-	cudaFree(dev_output);
-
-	cudaFreeHost(pinned_input_image);
-	cudaFreeHost(pinned_output_image);
-
-	cout << "CUDA time[ms]: " << double(end - begin) * 1000 / CLOCKS_PER_SEC << endl;
-
-	return true;
-}
 
 int main(int argc, char* argv[])
 {
+	const float mask1f1[] = {
+		0.17, 0.67, 0.17,
+		0.67, -3.33, 0.67,
+		0.17, 0.67, 0.17 };
+
+	const float mask2f1[] = {
+		0, 0, 0,
+		0, 0, 0,
+		0, 0, 0 };
+
+	const float mask1f2[] = {
+		1, 2, 1,
+		2, 4, 2,
+		1, 2, 1 };
+
+	const float mask2f2[] = {
+		0, 0, 0,
+		0, 0, 0,
+		0, 0, 0 };
+
+
+	const float mask1f3[] = {
+		-1, 0, 1,
+		-2, 0, 2,
+		-1, 0, 1 };
+
+	const float mask2f3[] = {
+		-1, -2, -1,
+		0, 0, 0,
+		1, 2, 1 };
 	int height, width, bytes_per_pixel;;
 	vector<string> vfiles = { "p1.jpg", "p2.jpg", "p4.jpg", "p5.jpg" };
 	vector<unsigned char*> in_data_ptr, out_data_ptr, out_ptr, in_ptr;
@@ -308,9 +164,9 @@ int main(int argc, char* argv[])
 
 	for (int i = 0; i < in_ptr.size(); ++i)
 	{
-		cuImageProcessing1(in_ptr[i], out_ptr[3 * i], width, height);
-		cuImageProcessing2(in_ptr[i], out_ptr[3 * i + 1], width, height);
-		cuImageProcessing3(in_ptr[i], out_ptr[3 * i + 2], width, height);
+		cuImageProcessing(in_ptr[i], out_ptr[3 * i], width, height, mask1f1, mask2f1);
+		cuImageProcessing(in_ptr[i], out_ptr[3 * i + 1], width, height, mask1f2, mask2f2);
+		cuImageProcessing(in_ptr[i], out_ptr[3 * i + 2], width, height, mask1f3, mask2f3);
 	}
 
 	for (int j = 0; j < out_data_ptr.size(); ++j)
